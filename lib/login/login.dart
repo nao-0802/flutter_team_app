@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../alarm/alarm_list.dart';
 import '../login/signup.dart';
+import '../login/email.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -130,10 +131,14 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: const Text('新規登録はこちら'),
                     ),
+
+                    // 👇 ここを修正：「パスワードをお忘れですか？」で email.dart に遷移
                     TextButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('パスワードをリセット機能は未実装です')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const EmailPage()),
                         );
                       },
                       child: const Text('パスワードをお忘れですか？'),
