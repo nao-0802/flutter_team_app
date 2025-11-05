@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_done.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../../firebase_options.dart'; // ← あなたのプロジェクト構成に合わせて変更
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -16,42 +14,33 @@ class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLoading = false;
-
-  Future<void> _initializeFirebase() async {
-    try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    } catch (_) {
-      // すでに初期化済みなら無視
-    }
-  }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
 
     try {
-      await _initializeFirebase();
-
-      // Firebase Authentication に登録
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Firebase Authentication にユーザー作成
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      final uid = userCredential.user?.uid;
-      if (uid == null) throw Exception("ユーザーIDが取得できませんでした。");
-
-      // Firestore に保存
-      await FirebaseFirestore.instance.collection('account').doc(uid).set({
+      // Firestore にプロフィール登録
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'createdAt': Timestamp.now(),
       });
 
       if (!mounted) return;
-
-      // 登録完了ページへ遷移
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const SignUpDonePage()),
@@ -60,15 +49,8 @@ class _SignUpPageState extends State<SignUpPage> {
       String message = '登録に失敗しました。';
       if (e.code == 'email-already-in-use') {
         message = 'このメールアドレスは既に登録されています。';
-      } else if (e.code == 'weak-password') {
-        message = 'パスワードは6文字以上にしてください。';
       }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('エラー: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -78,68 +60,38 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('新規登録')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  '新規登録',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 32),
-
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'メールアドレス',
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'メールアドレスを入力してください';
-                    }
-                    if (!value.contains('@')) {
-                      return '有効なメールアドレスを入力してください';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'パスワード',
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'パスワードを入力してください';
-                    }
-                    if (value.length < 6) {
-                      return '6文字以上で入力してください';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _signUp,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('登録する'),
-                  ),
-                ),
-              ],
-            ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: '名前'),
+                validator: (v) => v!.isEmpty ? '名前を入力してください' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'メールアドレス'),
+                validator: (v) => v!.contains('@') ? null : '有効なメールを入力してください',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'パスワード'),
+                obscureText: true,
+                validator: (v) => v!.length < 6 ? '6文字以上で入力してください' : null,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _signUp,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('登録'),
+              ),
+            ],
           ),
         ),
       ),
