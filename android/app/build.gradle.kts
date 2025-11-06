@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.flutter_temp_fix"
-    compileSdk = 34
+    compileSdk = 35
 
     // ✅ 明示的に指定
     ndkVersion = "27.0.12077973"
@@ -22,8 +22,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_temp_fix"
-        minSdk = flutter.minSdkVersion      // ✅ ここを明示的に指定
-        targetSdk = 34
+        minSdk = flutter.minSdkVersion     // ✅ ここを明示的に指定
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
