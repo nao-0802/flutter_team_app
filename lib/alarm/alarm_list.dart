@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'make_alarm.dart';
-import '../logout/logout.dart'; // 🔹 追加
+import 'alarm_edit.dart'; // ← 追加！
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -34,21 +34,13 @@ class _AlarmListPageState extends State<AlarmListPage>
           ],
         ),
         actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'logout') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LogoutPage()),
-                );
-              }
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('メニューが押されました')),
+              );
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'logout',
-                child: Text('ログアウト'),
-              ),
-            ],
           ),
         ],
       ),
@@ -65,14 +57,13 @@ class _AlarmListPageState extends State<AlarmListPage>
             context,
             MaterialPageRoute(builder: (context) => const MakeAlarmPage()),
           );
-          setState(() {}); // 戻った後に再読み込み
+          setState(() {});
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  /// Firestoreからユーザーごとのアラームを取得
   Widget _buildAlarmList(String collectionName) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -88,9 +79,6 @@ class _AlarmListPageState extends State<AlarmListPage>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
-          return Center(child: Text('エラー: ${snapshot.error}'));
-        }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(child: Text('アラームが登録されていません'));
         }
@@ -100,13 +88,11 @@ class _AlarmListPageState extends State<AlarmListPage>
         return ListView.builder(
           itemCount: alarms.length,
           itemBuilder: (context, index) {
-            final alarm = alarms[index].data() as Map<String, dynamic>;
+            final alarmDoc = alarms[index];
+            final alarm = alarmDoc.data() as Map<String, dynamic>;
             return ListTile(
               leading: const Icon(Icons.alarm),
-              title: Text(
-                alarm['time'] ?? '不明',
-                style: const TextStyle(fontSize: 24),
-              ),
+              title: Text(alarm['time'] ?? '不明', style: const TextStyle(fontSize: 24)),
               subtitle: (alarm['days'] != null && (alarm['days'] as List).isNotEmpty)
                   ? Text('繰り返し：${(alarm['days'] as List).join('・')}')
                   : null,
@@ -115,10 +101,22 @@ class _AlarmListPageState extends State<AlarmListPage>
                 onChanged: (value) {
                   FirebaseFirestore.instance
                       .collection(collectionName)
-                      .doc(alarms[index].id)
+                      .doc(alarmDoc.id)
                       .update({'enabled': value});
                 },
               ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AlarmEditPage(
+                      alarmId: alarmDoc.id,
+                      collectionName: collectionName,
+                      alarmData: alarm,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
