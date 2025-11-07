@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'make_alarm.dart';
+import '../logout/logout.dart'; // 🔹 追加
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -33,13 +34,21 @@ class _AlarmListPageState extends State<AlarmListPage>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('メニューが押されました')),
-              );
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LogoutPage()),
+                );
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Text('ログアウト'),
+              ),
+            ],
           ),
         ],
       ),
@@ -74,8 +83,6 @@ class _AlarmListPageState extends State<AlarmListPage>
       stream: FirebaseFirestore.instance
           .collection(collectionName)
           .where('userId', isEqualTo: user.uid)
-          // 🔹 並び替えを一旦外す（createdAt未反映対策）
-          // .orderBy('time')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
