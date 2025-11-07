@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_temp_fix"
-        minSdk = 23     // ✅ ここを明示的に指定
+        minSdk = 23    // ✅ ここを明示的に指定
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
