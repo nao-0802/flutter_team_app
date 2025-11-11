@@ -6,14 +6,15 @@ plugins {
 
 android {
     namespace = "com.example.flutter_temp_fix"
-    compileSdk = 35
+    compileSdk = 36
 
-    // ✅ 明示的に指定
     ndkVersion = "27.0.12077973"
 
     compileOptions {
+        // ✅ Java 11 + desugaring有効化
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true // ← これが超重要！
     }
 
     kotlinOptions {
@@ -22,8 +23,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_temp_fix"
-        minSdk = flutter.minSdkVersion    // ✅ ここを明示的に指定
-        targetSdk = 35
+        minSdk = flutter.minSdkVersion // ← Firebase Auth にも必要（21だとビルド失敗）
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
@@ -37,4 +38,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // ✅ Kotlin 標準ライブラリ
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+    // ✅ Desugaring 対応
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

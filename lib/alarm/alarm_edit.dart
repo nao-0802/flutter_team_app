@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import '../alarm/alarm_list.dart'; // 一覧に戻るため
+import '../../main.dart';
 
 class AlarmEditPage extends StatefulWidget {
   final String alarmId;
@@ -23,25 +27,27 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
   List<String> selectedDays = [];
   String? selectedSound;
 
+  final List<Map<String, String>> soundOptions = [
+    {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
+    {'name': 'さわやかアラーム', 'file': 'fresh_day.mp3'},
+    {'name': 'しっかり起床', 'file': 'wake_up_strong.mp3'},
+  ];
+
   final List<String> daysOfWeek = ['月', '火', '水', '木', '金', '土', '日'];
-  final List<String> soundOptions = ['サウンドA', 'サウンドB', 'サウンドC'];
 
   @override
   void initState() {
     super.initState();
-    final data = widget.alarmData;
     alarmType = widget.collectionName == 'normal_alarm' ? 'normal' : 'emergency';
-    selectedSound = data['sound'];
-    selectedDays = List<String>.from(data['days'] ?? []);
 
-    // 🔹 Firestoreでは "HH:mm" 形式の文字列なので分割してTimeOfDayに変換
-    if (data['time'] != null && data['time'].contains(':')) {
-      final parts = data['time'].split(':');
-      selectedTime = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
-      );
-    }
+    final timeStr = widget.alarmData['time'] ?? '07:00';
+    final parts = timeStr.split(':');
+    selectedTime = TimeOfDay(
+      hour: int.tryParse(parts[0]) ?? 7,
+      minute: int.tryParse(parts[1]) ?? 0,
+    );
+    selectedDays = List<String>.from(widget.alarmData['days'] ?? []);
+    selectedSound = widget.alarmData['sound'] ?? 'gentle_morning.mp3';
   }
 
   @override
@@ -51,11 +57,14 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
         title: const Text('アラーム編集'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AlarmListPage()),
+          ),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
             const Text('アラーム種別', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -66,7 +75,7 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
                     title: const Text('通常アラーム'),
                     value: 'normal',
                     groupValue: alarmType,
-                    onChanged: (value) => setState(() => alarmType = value!),
+                    onChanged: (v) => setState(() => alarmType = v!),
                   ),
                 ),
                 Expanded(
@@ -74,7 +83,7 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
                     title: const Text('緊急アラーム'),
                     value: 'emergency',
                     groupValue: alarmType,
-                    onChanged: (value) => setState(() => alarmType = value!),
+                    onChanged: (v) => setState(() => alarmType = v!),
                   ),
                 ),
               ],
@@ -123,25 +132,29 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
               isExpanded: true,
               items: soundOptions.map((sound) {
                 return DropdownMenuItem(
-                  value: sound,
-                  child: Text(sound),
+                  value: sound['file'],
+                  child: Text(sound['name']!),
                 );
               }).toList(),
               onChanged: (value) => setState(() => selectedSound = value),
             ),
             const SizedBox(height: 24),
 
-            ElevatedButton.icon(
-              onPressed: _updateAlarm,
-              icon: const Icon(Icons.save),
-              label: const Text('更新'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: _deleteAlarm,
-              icon: const Icon(Icons.delete),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              label: const Text('削除'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _updateAlarm,
+                  icon: const Icon(Icons.save),
+                  label: const Text('更新'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: _deleteAlarm,
+                  icon: const Icon(Icons.delete),
+                  label: const Text('削除'),
+                ),
+              ],
             ),
           ],
         ),
@@ -149,6 +162,7 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
     );
   }
 
+  /// 時刻選択
   Future<void> _pickTime() async {
     final now = TimeOfDay.now();
     final picked = await showTimePicker(
@@ -161,12 +175,10 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
         );
       },
     );
-    if (picked != null) {
-      setState(() => selectedTime = picked);
-    }
+    if (picked != null) setState(() => selectedTime = picked);
   }
 
-  /// 🔹 アラーム更新
+  /// アラーム更新
   Future<void> _updateAlarm() async {
     if (selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,50 +191,98 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
       'time':
           '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
       'days': selectedDays,
-      'sound': selectedSound ?? '未選択',
+      'sound': selectedSound ?? 'gentle_morning.mp3',
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    final currentCollection = widget.collectionName;
-    final newCollection =
-        alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
+    await FirebaseFirestore.instance
+        .collection(widget.collectionName)
+        .doc(widget.alarmId)
+        .update(newData);
 
-    // 🔹 コレクションが変わる場合（通常⇔緊急の切り替え）
-    if (currentCollection != newCollection) {
-      final oldDoc =
-          FirebaseFirestore.instance.collection(currentCollection).doc(widget.alarmId);
-      final snapshot = await oldDoc.get();
-      if (snapshot.exists) {
-        await FirebaseFirestore.instance.collection(newCollection).add({
-          ...snapshot.data()!,
-          ...newData,
-        });
-        await oldDoc.delete();
-      }
-    } else {
-      await FirebaseFirestore.instance
-          .collection(currentCollection)
-          .doc(widget.alarmId)
-          .update(newData);
-    }
+    await _scheduleNotification();
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('アラームを更新しました')),
     );
-    Navigator.pop(context);
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const AlarmListPage()),
+      (route) => false,
+    );
   }
 
-  /// 🔹 アラーム削除
+  /// アラーム削除
   Future<void> _deleteAlarm() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('削除確認'),
+        content: const Text('このアラームを削除しますか？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('キャンセル')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('削除')),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     await FirebaseFirestore.instance
         .collection(widget.collectionName)
         .doc(widget.alarmId)
         .delete();
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('アラームを削除しました')),
     );
-    Navigator.pop(context);
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const AlarmListPage()),
+      (route) => false,
+    );
+  }
+
+  /// 通知再設定
+  Future<void> _scheduleNotification() async {
+    if (selectedTime == null) return;
+
+    final now = DateTime.now();
+    final scheduleTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      0,
+      'アラーム更新',
+      '設定された時間になりました',
+      tz.TZDateTime.from(scheduleTime, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel',
+          'アラーム通知',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          fullScreenIntent: true,
+        ),
+      ),
+      payload: 'alarm_ring:${selectedSound ?? 'gentle_morning.mp3'}',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
   }
 }

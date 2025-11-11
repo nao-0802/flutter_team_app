@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ← 追加！
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import '../alarm/alarm_list.dart'; // 一覧画面に戻るため
+import '../../main.dart';
 
 class MakeAlarmPage extends StatefulWidget {
-  const MakeAlarmPage({Key? key}) : super(key: key);
+  const MakeAlarmPage({super.key});
 
   @override
   State<MakeAlarmPage> createState() => _MakeAlarmPageState();
 }
 
 class _MakeAlarmPageState extends State<MakeAlarmPage> {
-  String alarmType = 'normal'; // normal / emergency
+  String alarmType = 'normal';
   TimeOfDay? selectedTime;
   List<String> selectedDays = [];
   String? selectedSound;
 
+  final List<Map<String, String>> soundOptions = [
+    {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
+    {'name': 'さわやかアラーム', 'file': 'fresh_day.mp3'},
+    {'name': 'しっかり起床', 'file': 'wake_up_strong.mp3'},
+  ];
+
   final List<String> daysOfWeek = ['月', '火', '水', '木', '金', '土', '日'];
-  final List<String> soundOptions = ['サウンドA', 'サウンドB', 'サウンドC'];
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +34,11 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
         title: const Text('アラーム作成'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // 戻るボタンでalarm_list.dartに戻る
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
             const Text('アラーム種別', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -42,7 +49,7 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
                     title: const Text('通常アラーム'),
                     value: 'normal',
                     groupValue: alarmType,
-                    onChanged: (value) => setState(() => alarmType = value!),
+                    onChanged: (v) => setState(() => alarmType = v!),
                   ),
                 ),
                 Expanded(
@@ -50,7 +57,7 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
                     title: const Text('緊急アラーム'),
                     value: 'emergency',
                     groupValue: alarmType,
-                    onChanged: (value) => setState(() => alarmType = value!),
+                    onChanged: (v) => setState(() => alarmType = v!),
                   ),
                 ),
               ],
@@ -99,8 +106,8 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
               isExpanded: true,
               items: soundOptions.map((sound) {
                 return DropdownMenuItem(
-                  value: sound,
-                  child: Text(sound),
+                  value: sound['file'],
+                  child: Text(sound['name']!),
                 );
               }).toList(),
               onChanged: (value) => setState(() => selectedSound = value),
@@ -118,7 +125,7 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
     );
   }
 
-  /// 24時間表記で時刻選択ダイアログを表示
+  /// 時刻を選択
   Future<void> _pickTime() async {
     final now = TimeOfDay.now();
     final picked = await showTimePicker(
@@ -131,46 +138,86 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
         );
       },
     );
-    if (picked != null) {
-      setState(() => selectedTime = picked);
-    }
+    if (picked != null) setState(() => selectedTime = picked);
   }
 
-  /// Firestoreにアラームを保存（ユーザーID付き）
+  /// Firestoreへ保存し、アラームをスケジュール
   Future<void> _saveAlarm() async {
     if (selectedTime == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('時刻を設定してください')));
-      return;
-    }
-
-    // 🔹 現在ログインしているユーザーを取得
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ユーザー情報が見つかりません')),
+        const SnackBar(content: Text('時刻を設定してください')),
       );
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     final alarmData = {
-      'userId': user.uid, // ✅ ここでユーザーIDを紐づけ！
+      'userId': user.uid,
       'time':
           '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
       'days': selectedDays,
-      'sound': selectedSound ?? '未選択',
+      'sound': selectedSound ?? 'gentle_morning.mp3',
       'enabled': true,
       'createdAt': FieldValue.serverTimestamp(),
     };
 
     final collection =
         alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
-
     await FirebaseFirestore.instance.collection(collection).add(alarmData);
 
+    await _scheduleNotification();
+
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('アラームを保存しました（$collection）')));
-    Navigator.pop(context);
+
+    // ✅ 保存完了メッセージを表示
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('アラームを保存しました！')),
+    );
+
+    // ✅ 少し待ってから一覧画面に戻る
+    await Future.delayed(const Duration(seconds: 1));
+
+    // ✅ AlarmListPage へ確実に遷移（スタックをリセット）
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const AlarmListPage()),
+      (route) => false,
+    );
+  }
+
+  /// 通知スケジュール設定
+  Future<void> _scheduleNotification() async {
+    if (selectedTime == null) return;
+
+    final now = DateTime.now();
+    final scheduleTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      0,
+      'アラーム',
+      '設定時刻になりました',
+      tz.TZDateTime.from(scheduleTime, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel',
+          'アラーム通知',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          fullScreenIntent: true,
+        ),
+      ),
+      payload: 'alarm_ring:${selectedSound ?? 'gentle_morning.mp3'}',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
   }
 }
