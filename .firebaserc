@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "kazutxt-firebase-overvie-5de13"
-  }
+  },
+  "targets": {
+    "kazutxt-firebase-overvie-5de13": {
+      "hosting": {
+        "kazutxt-firebase-overvie-5de13": [
+          "kazutxt-firebase-overvie-5de13"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

@@ -4,7 +4,7 @@
       "android": {
         "default": {
           "projectId": "kazutxt-firebase-overvie-5de13",
-          "appId": "1:445883730465:android:d1149d1a0a09ea51df3160",
+          "appId": "1:445883730465:android:4967c4d2802e6994df3160",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -12,18 +12,15 @@
         "lib/firebase_options.dart": {
           "projectId": "kazutxt-firebase-overvie-5de13",
           "configurations": {
-            "android": "1:445883730465:android:d1149d1a0a09ea51df3160",
-            "ios": "1:445883730465:ios:8296e1a1b451b58bdf3160",
-            "macos": "1:445883730465:ios:8296e1a1b451b58bdf3160",
-            "web": "1:445883730465:web:637601a312dca68edf3160",
-            "windows": "1:445883730465:web:c763dd42536a7375df3160"
+            "android": "1:445883730465:android:4967c4d2802e6994df3160",
+            "web": "1:445883730465:web:637601a312dca68edf3160"
           }
         }
       }
     }
   },
   "hosting": {
-    "public": "public",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",

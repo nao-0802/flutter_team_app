@@ -84,7 +84,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBNPsUJkTajtsfOhS4M7vFXwlauWBpaow8',
-    appId: '1:445883730465:android:d1149d1a0a09ea51df3160',
+    appId: '1:445883730465:android:4967c4d2802e6994df3160',
     messagingSenderId: '445883730465',
     projectId: 'kazutxt-firebase-overvie-5de13',
     storageBucket: 'kazutxt-firebase-overvie-5de13.firebasestorage.app',
