@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'make_alarm.dart';
 import 'alarm_edit.dart';
+import '../logout/logout.dart'; 
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -26,6 +27,24 @@ class _AlarmListPageState extends State<AlarmListPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text("アラーム一覧"),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == "logout") {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LogoutPage()),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: "logout",
+                child: Text("ログアウト"),
+              ),
+            ],
+          ),
+        ],
         bottom: TabBar(
           controller: _tab,
           tabs: const [
@@ -76,8 +95,8 @@ class _AlarmListPageState extends State<AlarmListPage>
             final data = doc.data() as Map<String, dynamic>;
             return ListTile(
               leading: const Icon(Icons.alarm),
-              title: Text(data['time'] ?? '??'),
-              subtitle: data['days'] != null
+              title: Text(_formatTime(data['time'] ?? '??')),
+              subtitle: data['days'] != null && (data['days'] as List).isNotEmpty
                   ? Text("繰り返し: ${(data['days'] as List).join('・')}")
                   : null,
               trailing: Switch(
@@ -107,4 +126,14 @@ class _AlarmListPageState extends State<AlarmListPage>
       },
     );
   }
+
+  String _formatTime(String time) {
+    if (time == '??') return time;
+    final parts = time.split(':');
+    if (parts.length != 2) return time;
+    final hour = parts[0].padLeft(2, '0');
+    final minute = parts[1].padLeft(2, '0');
+    return '$hour:$minute';
+  }
 }
+

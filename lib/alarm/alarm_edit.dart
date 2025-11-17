@@ -19,16 +19,28 @@ class AlarmEditPage extends StatefulWidget {
 }
 
 class _AlarmEditPageState extends State<AlarmEditPage> {
-  late TimeOfDay time;
-  late List<String> days;
+  late TimeOfDay selectedTime;
+  late List<String> selectedDays;
+  late String alarmType;
+  late String? sound;
   late bool enabled;
+
+  final sounds = [
+    {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
+    {'name': 'さわやかアラーム', 'file': 'fresh_day.mp3'},
+    {'name': 'しっかり起床', 'file': 'wake_up_strong.mp3'}
+  ];
+
+  final days = ['月', '火', '水', '木', '金', '土', '日'];
 
   @override
   void initState() {
     super.initState();
     final t = widget.alarmData['time'].split(":");
-    time = TimeOfDay(hour: int.parse(t[0]), minute: int.parse(t[1]));
-    days = List<String>.from(widget.alarmData['days'] ?? []);
+    selectedTime = TimeOfDay(hour: int.parse(t[0]), minute: int.parse(t[1]));
+    selectedDays = List<String>.from(widget.alarmData['days'] ?? []);
+    alarmType = widget.collectionName == 'normal_alarm' ? 'normal' : 'emergency';
+    sound = widget.alarmData['sound'];
     enabled = widget.alarmData['enabled'] ?? true;
   }
 
@@ -36,54 +48,143 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("アラーム編集")),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ListTile(
-              title: Text("${time.hour}:${time.minute}"),
-              trailing: const Icon(Icons.access_time),
-              onTap: _pickTime,
+        children: [
+          const Text("アラーム種別"),
+          Row(
+            children: [
+              Radio(
+                value: 'normal',
+                groupValue: alarmType,
+                onChanged: (v) => setState(() => alarmType = v!),
+              ),
+              const Text("通常"),
+              Radio(
+                value: 'emergency',
+                groupValue: alarmType,
+                onChanged: (v) => setState(() => alarmType = v!),
+              ),
+              const Text("緊急"),
+            ],
+          ),
+          const Divider(),
+
+          // 時間
+          ListTile(
+            title: Text(
+              "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}",
+              style: const TextStyle(fontSize: 24),
             ),
-            const SizedBox(height: 30),
-            SwitchListTile(
-              title: const Text("有効 / 無効"),
-              value: enabled,
-              onChanged: (v) => setState(() => enabled = v),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _save,
-              child: const Text("更新する"),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: _delete,
-              child: const Text("削除する"),
-            ),
-          ],
-        ),
+            trailing: const Icon(Icons.access_time),
+            onTap: _pickTime,
+          ),
+
+          const Divider(),
+
+          const Text("曜日（任意）"),
+          Wrap(
+            spacing: 8,
+            children: days.map((d) {
+              final enable = selectedDays.contains(d);
+              return FilterChip(
+                label: Text(d),
+                selected: enable,
+                onSelected: (s) {
+                  setState(() {
+                    s ? selectedDays.add(d) : selectedDays.remove(d);
+                  });
+                },
+              );
+            }).toList(),
+          ),
+
+          const Divider(),
+          const Text("アラーム音"),
+          DropdownButton<String>(
+            value: sound,
+            isExpanded: true,
+            hint: const Text("選択してください"),
+            items: sounds.map((s) {
+              return DropdownMenuItem(
+                value: s['file'],
+                child: Text(s['name']!),
+              );
+            }).toList(),
+            onChanged: (v) => setState(() => sound = v),
+          ),
+
+          const Divider(),
+          SwitchListTile(
+            title: const Text("有効 / 無効"),
+            value: enabled,
+            onChanged: (v) => setState(() => enabled = v),
+          ),
+
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save),
+            label: const Text("更新する"),
+            onPressed: _save,
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete),
+            label: const Text("削除する"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: _delete,
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: time);
-    if (picked != null) setState(() => time = picked);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) setState(() => selectedTime = picked);
   }
 
   Future<void> _save() async {
-    final newTime = "${time.hour}:${time.minute}";
+    // バリデーションチェック
+    if (sound == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("アラーム音を選択してください")),
+      );
+      return;
+    }
 
+    final newTime = "${selectedTime.hour}:${selectedTime.minute}";
+    final newCollection = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
+
+    // 元のアラームを削除
     await FirebaseFirestore.instance
         .collection(widget.collectionName)
         .doc(widget.alarmId)
-        .update({
+        .delete();
+
+    // 新しいコレクションに追加
+    await FirebaseFirestore.instance.collection(newCollection).add({
+      'userId': widget.alarmData['userId'],
       'time': newTime,
-      'days': days,
+      'days': selectedDays,
       'enabled': enabled,
+      'sound': sound,
     });
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("アラームが更新されました")),
+    );
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -97,6 +198,12 @@ class _AlarmEditPageState extends State<AlarmEditPage> {
         .collection(widget.collectionName)
         .doc(widget.alarmId)
         .delete();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("アラームが削除されました")),
+    );
 
     Navigator.pushAndRemoveUntil(
       context,

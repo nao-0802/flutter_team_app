@@ -116,14 +116,27 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: now,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
     );
     if (picked != null) setState(() => selectedTime = picked);
   }
 
   Future<void> _saveAlarm() async {
-    if (selectedTime == null || sound == null) {
+    // バリデーションチェック
+    if (selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("時刻と音を選択してください")),
+        const SnackBar(content: Text("時刻を選択してください")),
+      );
+      return;
+    }
+    if (sound == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("アラーム音を選択してください")),
       );
       return;
     }
@@ -164,6 +177,11 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
     );
 
     if (!mounted) return;
+
+    // 保存成功のSnackBar表示
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("アラームが保存されました")),
+    );
 
     Navigator.pushReplacement(
       context,
