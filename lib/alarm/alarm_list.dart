@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'make_alarm.dart';
 import 'alarm_edit.dart';
-import '../logout/logout.dart'; 
+import '../logout/logout.dart';
+import '../group/group_list.dart';
+import '../profile/profile.dart'; 
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -15,11 +17,26 @@ class AlarmListPage extends StatefulWidget {
 class _AlarmListPageState extends State<AlarmListPage>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  int _currentIndex = 0; // アラームタブを選択状態にする
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (doc.exists) {
+      setState(() {
+        _userData = doc.data();
+      });
+    }
   }
 
   @override
@@ -37,12 +54,56 @@ class _AlarmListPageState extends State<AlarmListPage>
                 );
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: "logout",
-                child: Text("ログアウト"),
-              ),
-            ],
+            itemBuilder: (context) {
+              final user = FirebaseAuth.instance.currentUser;
+              return [
+                PopupMenuItem(
+                  enabled: false,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: _userData?['profileColor'] != null
+                              ? Color(_userData!['profileColor'])
+                              : Colors.blue,
+                          child: Icon(
+                            _userData?['profileIcon'] != null
+                                ? IconData(_userData!['profileIcon'], fontFamily: 'MaterialIcons')
+                                : Icons.person,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _userData?['name'] ?? '未設定',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                user?.email ?? '',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: "logout",
+                  child: Text("ログアウト"),
+                ),
+              ];
+            },
           ),
         ],
         bottom: TabBar(
@@ -65,10 +126,40 @@ class _AlarmListPageState extends State<AlarmListPage>
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const MakeAlarmPage()),
+            MaterialPageRoute(builder: (context) => const MakeAlarmPage()),
           );
           setState(() {});
         },
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const GroupListPage()),
+            );
+          } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
+            );
+          }
+        },
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.alarm),
+            label: "アラーム",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.group),
+            label: "共有アラーム",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "プロフィール",
+          ),
+        ],
       ),
     );
   }
