@@ -1,0 +1,1 @@
+C:\flutter\sotukenn\flutter_team_app\android\app\src\main\kotlin\com\example\flutter_team_app\MainActivity.kt

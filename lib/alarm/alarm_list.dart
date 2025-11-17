@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'make_alarm.dart';
-import 'alarm_edit.dart'; // ← 追加！
+import 'alarm_edit.dart';
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -13,106 +13,90 @@ class AlarmListPage extends StatefulWidget {
 
 class _AlarmListPageState extends State<AlarmListPage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late TabController _tab;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 2, vsync: this);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('アラーム一覧'),
+        title: const Text("アラーム一覧"),
         bottom: TabBar(
-          controller: _tabController,
+          controller: _tab,
           tabs: const [
-            Tab(text: '通常アラーム'),
-            Tab(text: '緊急アラーム'),
+            Tab(text: "通常アラーム"),
+            Tab(text: "緊急アラーム"),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('メニューが押されました')),
-              );
-            },
-          ),
-        ],
       ),
       body: TabBarView(
-        controller: _tabController,
+        controller: _tab,
         children: [
-          _buildAlarmList('normal_alarm'),
-          _buildAlarmList('emergency_alarm'),
+          _alarmList("normal_alarm"),
+          _alarmList("emergency_alarm"),
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const MakeAlarmPage()),
+            MaterialPageRoute(builder: (_) => const MakeAlarmPage()),
           );
           setState(() {});
         },
-        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildAlarmList(String collectionName) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Center(child: Text('ログイン情報がありません'));
-    }
+  Widget _alarmList(String collection) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const Center(child: Text("ログインが必要です"));
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection(collectionName)
-          .where('userId', isEqualTo: user.uid)
+          .collection(collection)
+          .where('userId', isEqualTo: uid)
           .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('アラームが登録されていません'));
-        }
+      builder: (ctx, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snap.data!.docs;
 
-        final alarms = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text("アラームなし"));
 
         return ListView.builder(
-          itemCount: alarms.length,
-          itemBuilder: (context, index) {
-            final alarmDoc = alarms[index];
-            final alarm = alarmDoc.data() as Map<String, dynamic>;
+          itemCount: docs.length,
+          itemBuilder: (_, i) {
+            final doc = docs[i];
+            final data = doc.data() as Map<String, dynamic>;
             return ListTile(
               leading: const Icon(Icons.alarm),
-              title: Text(alarm['time'] ?? '不明', style: const TextStyle(fontSize: 24)),
-              subtitle: (alarm['days'] != null && (alarm['days'] as List).isNotEmpty)
-                  ? Text('繰り返し：${(alarm['days'] as List).join('・')}')
+              title: Text(data['time'] ?? '??'),
+              subtitle: data['days'] != null
+                  ? Text("繰り返し: ${(data['days'] as List).join('・')}")
                   : null,
               trailing: Switch(
-                value: alarm['enabled'] ?? true,
-                onChanged: (value) {
+                value: data['enabled'] ?? true,
+                onChanged: (v) {
                   FirebaseFirestore.instance
-                      .collection(collectionName)
-                      .doc(alarmDoc.id)
-                      .update({'enabled': value});
+                      .collection(collection)
+                      .doc(doc.id)
+                      .update({'enabled': v});
                 },
               ),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AlarmEditPage(
-                      alarmId: alarmDoc.id,
-                      collectionName: collectionName,
-                      alarmData: alarm,
+                    builder: (_) => AlarmEditPage(
+                      alarmId: doc.id,
+                      collectionName: collection,
+                      alarmData: data,
                     ),
                   ),
                 );

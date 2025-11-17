@@ -1,0 +1,9 @@
+R_DEF: Internal format may change without notice
+local
+drawable launch_background
+mipmap ic_launcher
+raw fresh_day
+raw gentle_morning
+raw wake_up_strong
+style LaunchTheme
+style NormalTheme

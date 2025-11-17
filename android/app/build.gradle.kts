@@ -1,35 +1,29 @@
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.example.flutter_temp_fix"
-    compileSdk = 36
+    namespace = "com.example.flutter_team_app"
+    compileSdk = 34
 
-    ndkVersion = "27.0.12077973"
+    defaultConfig {
+        applicationId = "com.example.flutter_team_app"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
 
     compileOptions {
-        // ✅ Java 11 + desugaring有効化
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true // ← これが超重要！
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true // ← 追加
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
-    defaultConfig {
-        applicationId = "com.example.flutter_temp_fix"
-        minSdk = flutter.minSdkVersion // ← Firebase Auth にも必要（21だとビルド失敗）
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        jvmTarget = "17"
     }
 
     buildTypes {
@@ -39,14 +33,7 @@ android {
     }
 }
 
-flutter {
-    source = "../.."
-}
-
 dependencies {
-    // ✅ Kotlin 標準ライブラリ
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-
-    // ✅ Desugaring 対応
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // ← 追加
 }

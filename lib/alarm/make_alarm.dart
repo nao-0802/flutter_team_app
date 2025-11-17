@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import '../alarm/alarm_list.dart'; // 一覧画面に戻るため
+
 import '../../main.dart';
+import 'alarm_list.dart';
 
 class MakeAlarmPage extends StatefulWidget {
   const MakeAlarmPage({super.key});
@@ -14,210 +15,159 @@ class MakeAlarmPage extends StatefulWidget {
 }
 
 class _MakeAlarmPageState extends State<MakeAlarmPage> {
-  String alarmType = 'normal';
   TimeOfDay? selectedTime;
   List<String> selectedDays = [];
-  String? selectedSound;
+  String alarmType = "normal";
+  String? sound;
 
-  final List<Map<String, String>> soundOptions = [
+  final sounds = [
     {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
     {'name': 'さわやかアラーム', 'file': 'fresh_day.mp3'},
-    {'name': 'しっかり起床', 'file': 'wake_up_strong.mp3'},
+    {'name': 'しっかり起床', 'file': 'wake_up_strong.mp3'}
   ];
 
-  final List<String> daysOfWeek = ['月', '火', '水', '木', '金', '土', '日'];
+  final days = ['月', '火', '水', '木', '金', '土', '日'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('アラーム作成'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text("アラーム作成")),
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            const Text('アラーム種別', style: TextStyle(fontWeight: FontWeight.bold)),
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile(
-                    title: const Text('通常アラーム'),
-                    value: 'normal',
-                    groupValue: alarmType,
-                    onChanged: (v) => setState(() => alarmType = v!),
-                  ),
-                ),
-                Expanded(
-                  child: RadioListTile(
-                    title: const Text('緊急アラーム'),
-                    value: 'emergency',
-                    groupValue: alarmType,
-                    onChanged: (v) => setState(() => alarmType = v!),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            const Text('アラーム時刻', style: TextStyle(fontWeight: FontWeight.bold)),
-            ListTile(
-              title: Text(
-                selectedTime == null
-                    ? '未設定'
-                    : '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 20),
+        children: [
+          const Text("アラーム種別"),
+          Row(
+            children: [
+              Radio(
+                value: 'normal',
+                groupValue: alarmType,
+                onChanged: (v) => setState(() => alarmType = v!),
               ),
-              trailing: const Icon(Icons.access_time),
-              onTap: _pickTime,
-            ),
-            const Divider(),
+              const Text("通常"),
+              Radio(
+                value: 'emergency',
+                groupValue: alarmType,
+                onChanged: (v) => setState(() => alarmType = v!),
+              ),
+              const Text("緊急"),
+            ],
+          ),
+          const Divider(),
 
-            const Text('リマインド曜日', style: TextStyle(fontWeight: FontWeight.bold)),
-            Wrap(
-              spacing: 8,
-              children: daysOfWeek.map((day) {
-                final isSelected = selectedDays.contains(day);
-                return FilterChip(
-                  label: Text(day),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        selectedDays.add(day);
-                      } else {
-                        selectedDays.remove(day);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+          // 時間
+          ListTile(
+            title: Text(
+              selectedTime == null
+                  ? "未設定"
+                  : "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}",
+              style: const TextStyle(fontSize: 24),
             ),
-            const Divider(),
+            trailing: const Icon(Icons.access_time),
+            onTap: _pickTime,
+          ),
 
-            const Text('アラーム音', style: TextStyle(fontWeight: FontWeight.bold)),
-            DropdownButton<String>(
-              value: selectedSound,
-              hint: const Text('アラーム音を選択'),
-              isExpanded: true,
-              items: soundOptions.map((sound) {
-                return DropdownMenuItem(
-                  value: sound['file'],
-                  child: Text(sound['name']!),
-                );
-              }).toList(),
-              onChanged: (value) => setState(() => selectedSound = value),
-            ),
-            const SizedBox(height: 24),
+          const Divider(),
 
-            ElevatedButton.icon(
-              onPressed: _saveAlarm,
-              icon: const Icon(Icons.save),
-              label: const Text('保存'),
-            ),
-          ],
-        ),
+          const Text("曜日（任意）"),
+          Wrap(
+            spacing: 8,
+            children: days.map((d) {
+              final enable = selectedDays.contains(d);
+              return FilterChip(
+                label: Text(d),
+                selected: enable,
+                onSelected: (s) {
+                  setState(() {
+                    s ? selectedDays.add(d) : selectedDays.remove(d);
+                  });
+                },
+              );
+            }).toList(),
+          ),
+
+          const Divider(),
+          const Text("アラーム音"),
+          DropdownButton<String>(
+            value: sound,
+            isExpanded: true,
+            hint: const Text("選択してください"),
+            items: sounds.map((s) {
+              return DropdownMenuItem(
+                value: s['file'],
+                child: Text(s['name']!),
+              );
+            }).toList(),
+            onChanged: (v) => setState(() => sound = v),
+          ),
+
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save),
+            label: const Text("保存"),
+            onPressed: _saveAlarm,
+          )
+        ],
       ),
     );
   }
 
-  /// 時刻を選択
   Future<void> _pickTime() async {
     final now = TimeOfDay.now();
     final picked = await showTimePicker(
       context: context,
       initialTime: now,
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
-        );
-      },
     );
     if (picked != null) setState(() => selectedTime = picked);
   }
 
-  /// Firestoreへ保存し、アラームをスケジュール
   Future<void> _saveAlarm() async {
-    if (selectedTime == null) {
+    if (selectedTime == null || sound == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('時刻を設定してください')),
+        const SnackBar(content: Text("時刻と音を選択してください")),
       );
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    final alarmData = {
-      'userId': user.uid,
-      'time':
-          '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}',
+    final data = {
+      'userId': uid,
+      'time': "${selectedTime!.hour}:${selectedTime!.minute}",
       'days': selectedDays,
-      'sound': selectedSound ?? 'gentle_morning.mp3',
       'enabled': true,
-      'createdAt': FieldValue.serverTimestamp(),
+      'sound': sound,
     };
 
-    final collection =
-        alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
-    await FirebaseFirestore.instance.collection(collection).add(alarmData);
+    final col = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
 
-    await _scheduleNotification();
+    await FirebaseFirestore.instance.collection(col).add(data);
 
-    if (!mounted) return;
-
-    // ✅ 保存完了メッセージを表示
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('アラームを保存しました！')),
-    );
-
-    // ✅ 少し待ってから一覧画面に戻る
-    await Future.delayed(const Duration(seconds: 1));
-
-    // ✅ AlarmListPage へ確実に遷移（スタックをリセット）
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const AlarmListPage()),
-      (route) => false,
-    );
-  }
-
-  /// 通知スケジュール設定
-  Future<void> _scheduleNotification() async {
-    if (selectedTime == null) return;
-
-    final now = DateTime.now();
-    final scheduleTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      selectedTime!.hour,
-      selectedTime!.minute,
-    );
-
+    // 通知（音は payload で渡し、AlarmRingPage で再生）
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      'アラーム',
-      '設定時刻になりました',
-      tz.TZDateTime.from(scheduleTime, tz.local),
-      const NotificationDetails(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      "アラーム",
+      "アラームの時間です",
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'alarm_channel',
           'アラーム通知',
           importance: Importance.max,
           priority: Priority.high,
           playSound: true,
-          fullScreenIntent: true,
         ),
       ),
-      payload: 'alarm_ring:${selectedSound ?? 'gentle_morning.mp3'}',
+      payload: sound!,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AlarmListPage()),
     );
   }
 }

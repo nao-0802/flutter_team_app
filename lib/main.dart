@@ -3,50 +3,55 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
-import 'login/login.dart';
-import 'firebase_options.dart';
 
-// Flutter Local Notifications プラグインのインスタンス
+import 'firebase_options.dart';
+import 'login/login.dart';
+import 'alarm/alarm_ring.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
 
-  // Firebase 初期化
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Android 13 以降では通知権限が必要
   await Permission.notification.request();
 
-  // 通知プラグイン初期化
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: androidSettings);
 
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
+  // 通知タップ → AlarmRingPage を開く
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (details) {
+      if (details.payload != null) {
+        navigatorKey.currentState?.push(MaterialPageRoute(
+          builder: (_) => AlarmRingPage(sound: details.payload!),
+        ));
+      }
+    },
   );
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  // 🔔 通知チャンネルを作成
+  // 通知チャンネル
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'alarm_channel', // 一意のID
-    'アラーム通知', // チャンネル名
-    description: 'アラーム用の通知チャンネル',
+    'alarm_channel',
+    'アラーム通知',
+    description: 'アラーム用通知チャンネル',
     importance: Importance.max,
     playSound: true,
-    sound: RawResourceAndroidNotificationSound('gentle_morning'),
   );
 
-  final androidImplementation =
+  final androidImpl =
       flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-  await androidImplementation?.createNotificationChannel(channel);
+
+  await androidImpl?.createNotificationChannel(channel);
 
   runApp(const MyApp());
 }
@@ -57,14 +62,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-        ),
-      ),
+      navigatorKey: navigatorKey,
       home: const LoginPage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

@@ -1,0 +1,53 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.flutter_team_app"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10    <!--
+11         The INTERNET permission is required for development. Specifically,
+12         the Flutter tool needs it to communicate with the running application
+13         to allow setting breakpoints, to provide hot reload, etc.
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->C:\flutter\sotukenn\flutter_team_app\android\app\src\debug\AndroidManifest.xml:6:5-66
+15-->C:\flutter\sotukenn\flutter_team_app\android\app\src\debug\AndroidManifest.xml:6:22-64
+16    <!-- Android 13+ 通知権限 -->
+17    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Android 12+ 正確なアラーム権限 -->
+17-->C:\flutter\sotukenn\flutter_team_app\android\app\src\main\AndroidManifest.xml:5:5-76
+17-->C:\flutter\sotukenn\flutter_team_app\android\app\src\main\AndroidManifest.xml:5:22-74
+18    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+18-->C:\flutter\sotukenn\flutter_team_app\android\app\src\main\AndroidManifest.xml:7:5-78
+18-->C:\flutter\sotukenn\flutter_team_app\android\app\src\main\AndroidManifest.xml:7:22-76
+19
+20    <application
+21        android:name="android.app.Application"
+22        android:debuggable="true"
+23        android:extractNativeLibs="false"
+24        android:icon="@mipmap/ic_launcher"
+25        android:label="flutter_team_app" >
+26        <activity
+27            android:name="com.example.flutter_team_app.MainActivity"
+28            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+29            android:exported="true"
+30            android:hardwareAccelerated="true"
+31            android:launchMode="singleTop"
+32            android:theme="@style/LaunchTheme"
+33            android:windowSoftInputMode="adjustResize" >
+34            <intent-filter>
+35                <action android:name="android.intent.action.MAIN" />
+36
+37                <category android:name="android.intent.category.LAUNCHER" />
+38            </intent-filter>
+39        </activity>
+40
+41        <!-- Flutter のバックグラウンド設定 -->
+42        <meta-data
+43            android:name="flutterEmbedding"
+44            android:value="2" />
+45    </application>
+46
+47</manifest>

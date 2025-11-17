@@ -1,0 +1,7 @@
+int drawable launch_background 0x7f010000
+int mipmap ic_launcher 0x7f020000
+int raw fresh_day 0x7f030000
+int raw gentle_morning 0x7f030001
+int raw wake_up_strong 0x7f030002
+int style LaunchTheme 0x7f040000
+int style NormalTheme 0x7f040001
