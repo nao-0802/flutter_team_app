@@ -9,6 +9,7 @@ import 'group_members.dart';
 import 'edit_group.dart';
 import 'prank_page.dart';
 import '../group_alarm/edit_group_alarm.dart';
+import 'alarm_detail_page.dart';
 
 class GroupListPage extends StatefulWidget {
   const GroupListPage({super.key});
@@ -25,6 +26,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
   List<Map<String, dynamic>> groupAlarms = [];
   List<Map<String, dynamic>> emergencyAlarms = [];
   Set<String> expandedAlarms = {};
+  String? selectedAlarmId;
 
   @override
   void initState() {
@@ -108,7 +110,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
         children: [
           // 左側のグループアイコンリスト
           Container(
-            width: 80,
+            width: 60,
             color: Colors.grey[200],
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -125,8 +127,8 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
                         ).then((_) => _loadGroups());
                       },
                       child: Container(
-                        width: 56,
-                        height: 56,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.green,
@@ -135,7 +137,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
                         child: const Icon(
                           Icons.add,
                           color: Colors.white,
-                          size: 28,
+                          size: 20,
                         ),
                       ),
                     ),
@@ -153,8 +155,8 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
                       _loadGroupAlarms(group['id']);
                     },
                     child: Container(
-                      width: 56,
-                      height: 56,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Color(group['color']),
@@ -165,7 +167,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
                       child: Icon(
                         IconData(group['icon'], fontFamily: 'MaterialIcons'),
                         color: Colors.white,
-                        size: 28,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -300,170 +302,107 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       itemCount: alarms.length,
       itemBuilder: (context, index) {
         final alarm = alarms[index];
-        final isExpanded = expandedAlarms.contains(alarm['id']);
         
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(
-                  type == "緊急アラーム" ? Icons.warning : Icons.alarm,
-                  color: type == "緊急アラーム" ? Colors.red : Colors.blue,
-                ),
-                title: const Text('アラーム'),
-                subtitle: Text(
-                  '${alarm['time'] ?? ''} - ${(alarm['days'] as List?)?.join(', ') ?? '毎日'}',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => _confirmWakeUpForAlarm(alarm['id']),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(60, 30),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                      ),
-                      child: const Text('起床', style: TextStyle(fontSize: 12)),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 20),
-                      onPressed: () => _editAlarm(alarm, type == "緊急アラーム"),
-                    ),
-                    Switch(
-                      value: alarm['enabled'] ?? false,
-                      onChanged: (value) {
-                        _toggleAlarm(alarm['id'], value, type == "緊急アラーム");
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
-                      onPressed: () {
-                        setState(() {
-                          if (isExpanded) {
-                            expandedAlarms.remove(alarm['id']);
-                          } else {
-                            expandedAlarms.add(alarm['id']);
-                          }
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              if (isExpanded) _buildMemberStatus(alarm),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMemberStatus(Map<String, dynamic> alarm) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('wake_up_records')
-          .doc('${DateTime.now().toIso8601String().split('T')[0]}_${selectedGroupId}_${alarm['id']}')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        final doc = snapshot.data!;
-        final docData = doc.data() as Map<String, dynamic>?;
-        final records = doc.exists && docData != null
-            ? (docData['records'] as Map<String, dynamic>?) ?? {}
-            : <String, dynamic>{};
+        final isSelected = selectedAlarmId == alarm['id'];
         
-        print('メンバー状況デバッグ - ドキュメント存在: ${doc.exists}, レコード: $records');
-        if (selectedGroupId == null) return Container();
-        final group = groups.firstWhere((g) => g['id'] == selectedGroupId, orElse: () => <String, dynamic>{});
-        final members = List<Map<String, dynamic>>.from(group['members'] ?? []);
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'メンバー起床状況',
-                style: TextStyle(fontWeight: FontWeight.bold),
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              selectedAlarmId = alarm['id'];
+            });
+          },
+          onHorizontalDragEnd: (details) {
+            if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+              _showAlarmDetail(alarm, type);
+            }
+          },
+          onLongPress: () {
+            _showAlarmDetail(alarm, type);
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.blue[50] : Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                left: isSelected ? BorderSide(color: Colors.blue, width: 3) : BorderSide.none,
               ),
-              const SizedBox(height: 8),
-              ...members.map((member) {
-                final uid = member['uid'];
-                final memberRecord = records[uid] as Map<String, dynamic>?;
-                final wakeUpConfirmed = memberRecord?['wakeUpConfirmed'] ?? false;
-                final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                final isCurrentUser = uid == currentUid;
-                final alarmTimePassed = _isAlarmTimePassed(alarm);
-                
-                // 自分が起床確認済みかチェック
-                final currentUserRecord = records[currentUid] as Map<String, dynamic>?;
-                final currentUserWakeUpConfirmed = currentUserRecord?['wakeUpConfirmed'] ?? false;
-                
-                // イタズラ条件: 自分が起床確認済み かつ 相手が未確認 かつ 他人 かつ 時刻経過
-                final canPrank = currentUserWakeUpConfirmed && !wakeUpConfirmed && !isCurrentUser && alarmTimePassed;
-                
-                print('メンバー: ${member['name']}, 起床確認: $wakeUpConfirmed, 自分: $isCurrentUser, 自分の起床確認: $currentUserWakeUpConfirmed, 時刻経過: $alarmTimePassed, イタズラ可能: $canPrank');
-                
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: member['color'] != null
-                        ? Color(member['color'])
-                        : Colors.blue,
-                    child: Icon(
-                      member['icon'] != null
-                          ? IconData(member['icon'], fontFamily: 'MaterialIcons')
-                          : Icons.person,
-                      color: Colors.white,
-                    ),
-                  ),
-                  title: Text(member['name'] ?? '名前なし'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  type == "緊急アラーム" ? "🚨" : "⏰",
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        wakeUpConfirmed ? Icons.check_circle : Icons.cancel,
-                        color: wakeUpConfirmed ? Colors.green : Colors.red,
-                      ),
-                      if (canPrank) ...[
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.sentiment_very_dissatisfied, color: Colors.orange),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PrankPage(
-                                  targetMember: member,
-                                  groupId: selectedGroupId!,
-                                ),
-                              ),
-                            );
-                          },
+                      Text(
+                        _formatTime(alarm['time'] ?? ''),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
+                      ),
+                      if ((alarm['days'] as List?)?.isNotEmpty == true)
+                        Text(
+                          (alarm['days'] as List).join(', '),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      Text(
+                        '← 左スワイプで詳細',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[400],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                     ],
                   ),
-                );
-              }).toList(),
-            ],
+                ),
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: alarm['enabled'] ?? false,
+                    onChanged: (value) {
+                      _toggleAlarm(alarm['id'], value, type == "緊急アラーム");
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
+
+  void _showAlarmDetail(Map<String, dynamic> alarm, String type) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AlarmDetailPage(
+          alarm: alarm,
+          type: type,
+          groupId: selectedGroupId!,
+          onWakeUpConfirm: () => _confirmWakeUpForAlarm(alarm['id']),
+          onEdit: () => _editAlarm(alarm, type == "緊急アラーム"),
+        ),
+      ),
+    );
+  }
+
+
 
 
 
@@ -715,6 +654,17 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
         ],
       ),
     );
+  }
+
+  String _formatTime(String time) {
+    if (time.isEmpty) return '';
+    final parts = time.split(':');
+    if (parts.length != 2) return time;
+    
+    final hour = int.tryParse(parts[0])?.toString().padLeft(2, '0') ?? parts[0];
+    final minute = int.tryParse(parts[1])?.toString().padLeft(2, '0') ?? parts[1];
+    
+    return '$hour:$minute';
   }
 
   Future<void> _performLeaveGroup() async {

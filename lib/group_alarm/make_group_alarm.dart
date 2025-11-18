@@ -162,10 +162,50 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
     final docRef = await FirebaseFirestore.instance.collection(col).add(data);
     final alarmId = docRef.id;
 
+    // 実際のアラーム時刻に通知を設定
+    final now = DateTime.now();
+    var alarmDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    // 過去の時刻の場合は翌日に設定
+    if (alarmDateTime.isBefore(now)) {
+      alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+    }
+
+    final tzDateTime = tz.TZDateTime.from(alarmDateTime, tz.local);
+    
+    print('グループアラーム設定: ${tzDateTime.toString()}');
+    
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      alarmId.hashCode,
       "グループアラーム",
-      "${widget.groupName}のアラームの時間です",
+      "${widget.groupName}のアラームの時間です！",
+      tzDateTime,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel',
+          'アラーム通知',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+        ),
+      ),
+      payload: '${sound!}|${widget.groupId}|$alarmId',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    // テスト用: 5秒後にもテスト通知
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      999998,
+      "グループアラームテスト",
+      "5秒後のテスト通知です",
       tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
       NotificationDetails(
         android: AndroidNotificationDetails(

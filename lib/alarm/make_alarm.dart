@@ -102,12 +102,43 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
 
           const SizedBox(height: 20),
           ElevatedButton.icon(
+            icon: const Icon(Icons.notifications),
+            label: const Text("テスト通知"),
+            onPressed: _testNotification,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
             icon: const Icon(Icons.save),
             label: const Text("保存"),
             onPressed: _saveAlarm,
           )
         ],
       ),
+    );
+  }
+
+  Future<void> _testNotification() async {
+    print('テスト通知を送信します...');
+    
+    await flutterLocalNotificationsPlugin.show(
+      999,
+      'テスト通知',
+      'タップしてアラーム音をテスト！',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel',
+          'アラーム通知',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: false, // エミュレータでは通知音を無効に
+        ),
+      ),
+      payload: 'gentle_morning.mp3',
+    );
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('テスト通知を送信しました。通知をタップしてアラーム音をテスト！')),
     );
   }
 
@@ -153,15 +184,55 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
 
     final col = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
 
-    await FirebaseFirestore.instance.collection(col).add(data);
+    final docRef = await FirebaseFirestore.instance.collection(col).add(data);
+    final alarmId = docRef.id;
 
-    // 通知（音は payload で渡し、AlarmRingPage で再生）
+    // 実際のアラーム時刻に通知を設定
+    final now = DateTime.now();
+    var alarmDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    // 過去の時刻の場合は翌日に設定
+    if (alarmDateTime.isBefore(now)) {
+      alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+    }
+
+    final tzDateTime = tz.TZDateTime.from(alarmDateTime, tz.local);
+    
+    print('アラーム設定: ${tzDateTime.toString()}');
+    
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      alarmId.hashCode,
       "アラーム",
-      "アラームの時間です",
-      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+      "アラームの時間です！",
+      tzDateTime,
       NotificationDetails(
+        android: AndroidNotificationDetails(
+          'alarm_channel',
+          'アラーム通知',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+        ),
+      ),
+      payload: sound!,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    // テスト用: 5秒後にもテスト通知
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      999999,
+      "テスト通知",
+      "5秒後のテスト通知です",
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           'alarm_channel',
           'アラーム通知',
