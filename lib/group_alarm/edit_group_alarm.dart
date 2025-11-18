@@ -1,29 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import '../../main.dart';
+import '../group/group_list.dart';
 
-class MakeGroupAlarmPage extends StatefulWidget {
+class EditGroupAlarmPage extends StatefulWidget {
+  final String alarmId;
+  final String collectionName;
+  final Map<String, dynamic> alarmData;
   final String groupId;
   final String groupName;
 
-  const MakeGroupAlarmPage({
+  const EditGroupAlarmPage({
     super.key,
+    required this.alarmId,
+    required this.collectionName,
+    required this.alarmData,
     required this.groupId,
     required this.groupName,
   });
 
   @override
-  State<MakeGroupAlarmPage> createState() => _MakeGroupAlarmPageState();
+  State<EditGroupAlarmPage> createState() => _EditGroupAlarmPageState();
 }
 
-class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
-  TimeOfDay? selectedTime;
-  List<String> selectedDays = [];
-  String alarmType = "normal";
-  String? sound;
+class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
+  late TimeOfDay selectedTime;
+  late List<String> selectedDays;
+  late String alarmType;
+  late String? sound;
+  late bool enabled;
 
   final sounds = [
     {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
@@ -34,9 +38,20 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
   final days = ['月', '火', '水', '木', '金', '土', '日'];
 
   @override
+  void initState() {
+    super.initState();
+    final t = widget.alarmData['time'].split(":");
+    selectedTime = TimeOfDay(hour: int.parse(t[0]), minute: int.parse(t[1]));
+    selectedDays = List<String>.from(widget.alarmData['days'] ?? []);
+    alarmType = widget.collectionName == 'group_normal_alarm' ? 'normal' : 'emergency';
+    sound = widget.alarmData['sound'];
+    enabled = widget.alarmData['enabled'] ?? true;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("${widget.groupName} - アラーム作成")),
+      appBar: AppBar(title: Text("${widget.groupName} - アラーム編集")),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -61,9 +76,7 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
 
           ListTile(
             title: Text(
-              selectedTime == null
-                  ? "未設定"
-                  : "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}",
+              "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}",
               style: const TextStyle(fontSize: 24),
             ),
             trailing: const Icon(Icons.access_time),
@@ -104,22 +117,35 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
             onChanged: (v) => setState(() => sound = v),
           ),
 
+          const Divider(),
+          SwitchListTile(
+            title: const Text("有効 / 無効"),
+            value: enabled,
+            onChanged: (v) => setState(() => enabled = v),
+          ),
+
           const SizedBox(height: 20),
           ElevatedButton.icon(
             icon: const Icon(Icons.save),
-            label: const Text("保存"),
-            onPressed: _saveAlarm,
-          )
+            label: const Text("更新する"),
+            onPressed: _save,
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete),
+            label: const Text("削除する"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: _delete,
+          ),
         ],
       ),
     );
   }
 
   Future<void> _pickTime() async {
-    final now = TimeOfDay.now();
     final picked = await showTimePicker(
       context: context,
-      initialTime: now,
+      initialTime: selectedTime,
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
@@ -130,13 +156,7 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
     if (picked != null) setState(() => selectedTime = picked);
   }
 
-  Future<void> _saveAlarm() async {
-    if (selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("時刻を選択してください")),
-      );
-      return;
-    }
+  Future<void> _save() async {
     if (sound == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("アラーム音を選択してください")),
@@ -144,50 +164,55 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
       return;
     }
 
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final newTime = "${selectedTime.hour}:${selectedTime.minute}";
+    final newCollection = alarmType == 'normal' ? 'group_normal_alarm' : 'group_emergency_alarm';
 
-    final data = {
-      'userId': uid,
+    // 元のアラームを削除
+    await FirebaseFirestore.instance
+        .collection(widget.collectionName)
+        .doc(widget.alarmId)
+        .delete();
+
+    // 新しいコレクションに追加
+    await FirebaseFirestore.instance.collection(newCollection).add({
+      'userId': widget.alarmData['userId'],
       'groupId': widget.groupId,
-      'time': "${selectedTime!.hour}:${selectedTime!.minute}",
+      'time': newTime,
       'days': selectedDays,
-      'enabled': true,
+      'enabled': enabled,
       'sound': sound,
       'createdAt': Timestamp.now(),
-    };
-
-    final col = alarmType == 'normal' ? 'group_normal_alarm' : 'group_emergency_alarm';
-
-    // アラームを保存してIDを取得
-    final docRef = await FirebaseFirestore.instance.collection(col).add(data);
-    final alarmId = docRef.id;
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      "グループアラーム",
-      "${widget.groupName}のアラームの時間です",
-      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'alarm_channel',
-          'アラーム通知',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-        ),
-      ),
-      payload: '${sound!}|${widget.groupId}|$alarmId',
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    });
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("グループアラームが保存されました")),
+      const SnackBar(content: Text("グループアラームが更新されました")),
     );
 
-    Navigator.pop(context);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const GroupListPage()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _delete() async {
+    await FirebaseFirestore.instance
+        .collection(widget.collectionName)
+        .doc(widget.alarmId)
+        .delete();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("グループアラームが削除されました")),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const GroupListPage()),
+      (route) => false,
+    );
   }
 }

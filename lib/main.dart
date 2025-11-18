@@ -32,7 +32,7 @@ Future<void> main() async {
     onDidReceiveNotificationResponse: (details) {
       if (details.payload != null) {
         navigatorKey.currentState?.push(MaterialPageRoute(
-          builder: (_) => AlarmRingPage(sound: details.payload!),
+          builder: (_) => AlarmRingPage.fromPayload(details.payload!),
         ));
       }
     },
