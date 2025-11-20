@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.flutter_team_app"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.flutter_team_app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
