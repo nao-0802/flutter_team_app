@@ -13,21 +13,19 @@ git clone https://github.com/nao-0802/flutter_team_app.git
 cd flutter_team_app
 ```
 
-2. local.propertiesを設定
-```bash
-cp android/local.properties.template android/local.properties
-```
-`android/local.properties`を開いて、自分の環境に合わせてパスを修正してください。
-
-3. 依存関係を取得
+2. 依存関係を取得
 ```bash
 flutter pub get
 ```
 
-4. アプリを実行
+3. アプリを実行
 ```bash
 flutter run
 ```
+
+## 注意事項
+- `android/local.properties`はデフォルト設定でコミット済み
+- 個別の環境設定が必要な場合のみ、パスを調整してください
 
 ## トラブルシューティング
 
