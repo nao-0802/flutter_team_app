@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../alarm/alarm_list.dart';
 import '../profile/profile.dart';
+import '../task/task_main.dart';
 import 'make_group.dart';
 import '../group_alarm/make_group_alarm.dart';
 import 'group_members.dart';
@@ -196,6 +197,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 0) {
@@ -204,6 +206,11 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
               MaterialPageRoute(builder: (_) => const AlarmListPage()),
             );
           } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const TaskMainPage()),
+            );
+          } else if (index == 3) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const ProfilePage()),
@@ -218,6 +225,10 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
           BottomNavigationBarItem(
             icon: Icon(Icons.group),
             label: "共有アラーム",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task_alt),
+            label: "タスク",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

@@ -6,7 +6,8 @@ import 'alarm_edit.dart';
 import '../logout/logout.dart';
 import '../group/group_list.dart';
 import '../profile/profile.dart';
-import '../route/route_list.dart'; 
+import '../route/route_list.dart';
+import '../task/task_main.dart'; 
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -142,6 +143,7 @@ class _AlarmListPageState extends State<AlarmListPage>
         },
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 1) {
@@ -150,6 +152,11 @@ class _AlarmListPageState extends State<AlarmListPage>
               MaterialPageRoute(builder: (context) => const GroupListPage()),
             );
           } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TaskMainPage()),
+            );
+          } else if (index == 3) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const ProfilePage()),
@@ -164,6 +171,10 @@ class _AlarmListPageState extends State<AlarmListPage>
           BottomNavigationBarItem(
             icon: Icon(Icons.group),
             label: "共有アラーム",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task_alt),
+            label: "タスク",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

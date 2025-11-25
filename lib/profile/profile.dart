@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../alarm/alarm_list.dart';
 import '../group/group_list.dart';
+import '../task/task_main.dart';
 import 'profile_edit.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -13,7 +14,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  int _currentIndex = 2; // プロフィールタブを選択状態にする
+  int _currentIndex = 3; // プロフィールタブを選択状態にする
   Map<String, dynamic>? _userData;
 
   @override
@@ -106,6 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 0) {
@@ -118,6 +120,11 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               MaterialPageRoute(builder: (context) => const GroupListPage()),
             );
+          } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TaskMainPage()),
+            );
           }
         },
         items: [
@@ -128,6 +135,10 @@ class _ProfilePageState extends State<ProfilePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.group),
             label: "共有アラーム",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task_alt),
+            label: "タスク",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
