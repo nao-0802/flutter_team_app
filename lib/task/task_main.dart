@@ -164,6 +164,15 @@ class _TaskListViewState extends State<_TaskListView> {
 
         final tasks = snapshot.data!.docs;
 
+        // 時刻順にソート
+        tasks.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['time'] ?? '00:00';
+          final bTime = bData['time'] ?? '00:00';
+          return _timeToMinutes(aTime).compareTo(_timeToMinutes(bTime));
+        });
+
         if (tasks.isEmpty) {
           return const Center(
             child: Column(
@@ -309,5 +318,13 @@ class _TaskListViewState extends State<_TaskListView> {
 
   void _deleteTask(String taskId) {
     FirebaseFirestore.instance.collection('tasks').doc(taskId).delete();
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) return 0;
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    return hour * 60 + minute;
   }
 }

@@ -463,6 +463,19 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
             data['id'] = doc.id;
             return data;
           }).toList();
+
+          // 時刻順にソート
+          groupAlarms.sort((a, b) {
+            final aTime = a['time'] ?? '00:00';
+            final bTime = b['time'] ?? '00:00';
+            return _timeToMinutes(aTime).compareTo(_timeToMinutes(bTime));
+          });
+
+          emergencyAlarms.sort((a, b) {
+            final aTime = a['time'] ?? '00:00';
+            final bTime = b['time'] ?? '00:00';
+            return _timeToMinutes(aTime).compareTo(_timeToMinutes(bTime));
+          });
         });
       }
     } catch (e) {
@@ -676,6 +689,14 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
     final minute = int.tryParse(parts[1])?.toString().padLeft(2, '0') ?? parts[1];
     
     return '$hour:$minute';
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) return 0;
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    return hour * 60 + minute;
   }
 
   Future<void> _performLeaveGroup() async {

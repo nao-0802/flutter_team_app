@@ -200,6 +200,20 @@ class _AlarmListPageState extends State<AlarmListPage>
 
         if (docs.isEmpty) return const Center(child: Text("アラームなし"));
 
+        // 時刻順にソート
+        docs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['time'] ?? '00:00';
+          final bTime = bData['time'] ?? '00:00';
+          
+          // 時刻を分に変換
+          int aMinutes = _timeToMinutes(aTime);
+          int bMinutes = _timeToMinutes(bTime);
+          
+          return aMinutes.compareTo(bMinutes);
+        });
+
         return ListView.builder(
           itemCount: docs.length,
           itemBuilder: (_, i) {
@@ -246,6 +260,14 @@ class _AlarmListPageState extends State<AlarmListPage>
     final hour = parts[0].padLeft(2, '0');
     final minute = parts[1].padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) return 0;
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    return hour * 60 + minute;
   }
 }
 
