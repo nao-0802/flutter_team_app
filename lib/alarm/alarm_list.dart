@@ -5,7 +5,8 @@ import 'make_alarm.dart';
 import 'alarm_edit.dart';
 import '../logout/logout.dart';
 import '../group/group_list.dart';
-import '../profile/profile.dart'; 
+import '../profile/profile.dart';
+import '../route/route_list.dart'; 
 
 class AlarmListPage extends StatefulWidget {
   const AlarmListPage({super.key});
@@ -51,6 +52,11 @@ class _AlarmListPageState extends State<AlarmListPage>
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const LogoutPage()),
+                );
+              } else if (value == "route") {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RouteListPage()),
                 );
               }
             },
@@ -98,6 +104,10 @@ class _AlarmListPageState extends State<AlarmListPage>
                   ),
                 ),
                 const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: "route",
+                  child: Text("路線情報"),
+                ),
                 const PopupMenuItem(
                   value: "logout",
                   child: Text("ログアウト"),
