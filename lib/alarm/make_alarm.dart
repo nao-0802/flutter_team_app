@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-
-import '../../main.dart';
+import 'package:alarm/alarm.dart';
 import 'alarm_list.dart';
 
 class MakeAlarmPage extends StatefulWidget {
@@ -120,21 +119,20 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
 
   Future<void> _testNotification() async {
     print('テスト通知を送信します...');
-    
-    await flutterLocalNotificationsPlugin.show(
-      999,
-      'テスト通知',
-      'タップしてアラーム音をテスト！',
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'alarm_channel',
-          'アラーム通知',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: false, // エミュレータでは通知音を無効に
-        ),
-      ),
-      payload: 'gentle_morning.mp3',
+    final now = DateTime.now();
+
+    await Alarm.set(
+        alarmSettings: AlarmSettings(
+            id:999,
+            dateTime: now.add(const Duration(seconds: 5)),
+            assetAudioPath: 'assets/sounds/gentle_morning.mp3',
+            loopAudio: true,
+            vibrate: true,
+            volume: 0.5,
+            fadeDuration: 3,
+            notificationTitle: 'テストアラーム',
+            notificationBody: 'テスト'
+        )
     );
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -173,6 +171,7 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
     }
 
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final alarmId = DateTime.now().millisecondsSinceEpoch % 2147483647;
 
     final data = {
       'userId': uid,
@@ -180,72 +179,25 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
       'days': selectedDays,
       'enabled': true,
       'sound': sound,
+      'alarmId' : alarmId
     };
 
     final col = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
 
-    final docRef = await FirebaseFirestore.instance.collection(col).add(data);
-    final alarmId = docRef.id;
+    await FirebaseFirestore.instance.collection(col).add(data);
 
-    // 実際のアラーム時刻に通知を設定
-    final now = DateTime.now();
-    var alarmDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      selectedTime!.hour,
-      selectedTime!.minute,
-    );
-
-    // 過去の時刻の場合は翌日に設定
-    if (alarmDateTime.isBefore(now)) {
-      alarmDateTime = alarmDateTime.add(const Duration(days: 1));
-    }
-
-    final tzDateTime = tz.TZDateTime.from(alarmDateTime, tz.local);
-    
-    print('アラーム設定: ${tzDateTime.toString()}');
-    
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      alarmId.hashCode,
-      "アラーム",
-      "アラームの時間です！",
-      tzDateTime,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'alarm_channel',
-          'アラーム通知',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-        ),
-      ),
-      payload: sound!,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
-
-    // テスト用: 5秒後にもテスト通知
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      999999,
-      "テスト通知",
-      "5秒後のテスト通知です",
-      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'alarm_channel',
-          'アラーム通知',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-        ),
-      ),
-      payload: sound!,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    final nextDateTime = calclulateNextAlarmDateTime(selectedTime!, selectedDays);
+    await Alarm.set(
+            alarmSettings: AlarmSettings(
+                id: alarmId,
+                dateTime: nextDateTime,
+                assetAudioPath: 'assets/sounds/$sound',
+                loopAudio: alarmType == 'emergency',
+                vibrate: true,
+                notificationTitle: 'アラーム',
+                notificationBody: 'アラームの時間です'   
+            )
+        );
 
     if (!mounted) return;
 
@@ -259,4 +211,94 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
       MaterialPageRoute(builder: (_) => const AlarmListPage()),
     );
   }
+}
+
+int dayToWeekday(String day) {
+  switch (day) {
+    case '月': return DateTime.monday;
+    case '火': return DateTime.tuesday;
+    case '水': return DateTime.wednesday;
+    case '木': return DateTime.thursday;
+    case '金': return DateTime.friday;
+    case '土': return DateTime.saturday;
+    case '日': return DateTime.sunday;
+    default: return DateTime.monday;
+  }
+}
+
+tz.TZDateTime nextWeekdayTime(
+  int weekday,
+  TimeOfDay time,
+) {
+  final now = tz.TZDateTime.now(tz.local);
+
+  var scheduled = tz.TZDateTime(
+    tz.local,
+    now.year,
+    now.month,
+    now.day,
+    time.hour,
+    time.minute,
+  );
+
+  while (scheduled.weekday != weekday || scheduled.isBefore(now)) {
+    scheduled = scheduled.add(const Duration(days: 1));
+  }
+
+  return scheduled;
+}
+
+DateTime calclulateNextAlarmDateTime(
+    TimeOfDay time,
+    List<String> days,
+) {
+    final now = DateTime.now();
+
+    if (days.isEmpty) {
+        final today = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            time.hour,
+            time.minute
+        );
+        print("あいうえお");
+        return today.isAfter(now)
+            ? today
+            : today.add(const Duration(days: 1));
+    }
+
+    final weekdayMap = {
+        '月': DateTime.monday,
+        '火': DateTime.tuesday,
+        '水': DateTime.wednesday,
+        '木': DateTime.thursday,
+        '金': DateTime.friday,
+        '土': DateTime.saturday,
+        '日': DateTime.sunday,
+    };
+
+    print("かきくけこ");
+
+    final targets = days
+        .where((d) => weekdayMap.containsKey(d))
+        .map((d) => weekdayMap[d]!)
+        .toList()
+        ..sort();
+    
+    for (int i = 0; i < 7; i++) {
+        final candidate = DateTime(
+            now.year,
+            now.month,
+            now.day+i,
+            time.hour,
+            time.minute
+        );
+
+        if (targets.contains(candidate.weekday) && candidate.isAfter(now)) {
+            return candidate;
+        }
+    }
+
+    return now.add(const Duration(days: 1));
 }
