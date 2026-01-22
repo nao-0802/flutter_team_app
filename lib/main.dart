@@ -4,19 +4,41 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:alarm/alarm.dart';
 
 import 'firebase_options.dart';
 import 'login/login.dart';
 import 'alarm/alarm_ring.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+bool _alarmListenerRegisterd = false;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
+
+  tz.setLocalLocation(tz.getLocation('Asia/Tokyo'));
+
+  await Alarm.init();
+
+  if (!_alarmListenerRegisterd) {
+    _alarmListenerRegisterd = true;
+    Alarm.ringStream.stream.listen((alarmSettings) {
+        navigatorKey.currentState?.push(
+            MaterialPageRoute(
+                builder: (_) => AlarmRingPage(
+                    alarmSettings: alarmSettings,
+                    alarmId: alarmSettings.id.toString(),
+                    ),
+                ),
+            );
+        }
+    );
+  }
 
   try {
     await Firebase.initializeApp(
@@ -37,20 +59,20 @@ Future<void> main() async {
     }
   }
 
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const initSettings = InitializationSettings(android: androidSettings);
+//   const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+//   const initSettings = InitializationSettings(android: androidSettings);
 
-  // 通知タップ → AlarmRingPage を開く
-  await flutterLocalNotificationsPlugin.initialize(
-    initSettings,
-    onDidReceiveNotificationResponse: (details) {
-      if (details.payload != null) {
-        navigatorKey.currentState?.push(MaterialPageRoute(
-          builder: (_) => AlarmRingPage.fromPayload(details.payload!),
-        ));
-      }
-    },
-  );
+//   // 通知タップ → AlarmRingPage を開く
+//   await flutterLocalNotificationsPlugin.initialize(
+//     initSettings,
+//     onDidReceiveNotificationResponse: (NotificationResponse response) {
+//       if (response.payload != null) {
+//         navigatorKey.currentState?.push(MaterialPageRoute(
+//           builder: (_) => AlarmRingPage.fromPayload(response.payload!),
+//         ));
+//       }
+//     },
+//   );
 
   // 通知チャンネル
   const AndroidNotificationChannel channel = AndroidNotificationChannel(

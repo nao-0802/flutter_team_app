@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_team_app/alarm/alarm_settings.dart';
 import 'make_alarm.dart';
 import 'alarm_edit.dart';
+import '../fortune_roulet/fortune_roulet.dart';
 import '../logout/logout.dart';
 import '../group/group_list.dart';
 import '../profile/profile.dart';
@@ -59,6 +61,16 @@ class _AlarmListPageState extends State<AlarmListPage>
                   context,
                   MaterialPageRoute(builder: (_) => const RouteListPage()),
                 );
+              } else if (value == "fortune") {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FortuneRouletPage()),
+                );
+              } else if (value == "notification") {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationSettingsPage()),
+                );
               }
             },
             itemBuilder: (context) {
@@ -108,6 +120,14 @@ class _AlarmListPageState extends State<AlarmListPage>
                 const PopupMenuItem(
                   value: "route",
                   child: Text("路線情報"),
+                ),
+                const PopupMenuItem(
+                    value: "fortune",
+                    child: Text("占いルーレット"),
+                ),
+                const PopupMenuItem(
+                    value: "notification",
+                    child: Text("通知設定"),
                 ),
                 const PopupMenuItem(
                   value: "logout",
