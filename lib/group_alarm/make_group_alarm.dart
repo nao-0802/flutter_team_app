@@ -1,3 +1,4 @@
+import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -145,10 +146,12 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
     }
 
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final alarmId = DateTime.now().millisecondsSinceEpoch % 2147483647;
 
     final data = {
       'userId': uid,
       'groupId': widget.groupId,
+      'alarmId': alarmId,
       'time': "${selectedTime!.hour}:${selectedTime!.minute}",
       'days': selectedDays,
       'enabled': true,
@@ -160,7 +163,6 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
 
     // アラームを保存してIDを取得
     final docRef = await FirebaseFirestore.instance.collection(col).add(data);
-    final alarmId = docRef.id;
 
     // 実際のアラーム時刻に通知を設定
     final now = DateTime.now();
@@ -180,7 +182,20 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
     final tzDateTime = tz.TZDateTime.from(alarmDateTime, tz.local);
     
     print('グループアラーム設定: ${tzDateTime.toString()}');
-    
+
+    final nextTimeDate = calclulateNextAlarmDateTime(selectedTime!, selectedDays);
+    await Alarm.set(
+        alarmSettings: AlarmSettings(
+            id: alarmId,
+            dateTime: nextTimeDate,
+            assetAudioPath: 'assets/sounds/$sound',
+            loopAudio: alarmType == 'emergency',
+            vibrate: true,
+            notificationTitle: 'グループアラーム',
+            notificationBody: '${widget.groupName}のアラームの時間です。'
+        )
+    );
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       alarmId.hashCode,
       "グループアラーム",
@@ -230,4 +245,59 @@ class _MakeGroupAlarmPageState extends State<MakeGroupAlarmPage> {
 
     Navigator.pop(context);
   }
+}
+
+DateTime calclulateNextAlarmDateTime(
+    TimeOfDay time,
+    List<String> days,
+) {
+    final now = DateTime.now();
+
+    if (days.isEmpty) {
+        final today = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            time.hour,
+            time.minute
+        );
+        print("あいうえお");
+        return today.isAfter(now)
+            ? today
+            : today.add(const Duration(days: 1));
+    }
+
+    final weekdayMap = {
+        '月': DateTime.monday,
+        '火': DateTime.tuesday,
+        '水': DateTime.wednesday,
+        '木': DateTime.thursday,
+        '金': DateTime.friday,
+        '土': DateTime.saturday,
+        '日': DateTime.sunday,
+    };
+
+    print("かきくけこ");
+
+    final targets = days
+        .where((d) => weekdayMap.containsKey(d))
+        .map((d) => weekdayMap[d]!)
+        .toList()
+        ..sort();
+    
+    for (int i = 0; i < 7; i++) {
+        final candidate = DateTime(
+            now.year,
+            now.month,
+            now.day+i,
+            time.hour,
+            time.minute
+        );
+
+        if (targets.contains(candidate.weekday) && candidate.isAfter(now)) {
+            return candidate;
+        }
+    }
+
+    return now.add(const Duration(days: 1));
 }

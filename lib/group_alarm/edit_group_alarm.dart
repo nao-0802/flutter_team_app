@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alarm/alarm.dart';
 import '../group/group_list.dart';
 
 class EditGroupAlarmPage extends StatefulWidget {
@@ -28,6 +29,7 @@ class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
   late String alarmType;
   late String? sound;
   late bool enabled;
+  late int alarmPackageId;
 
   final sounds = [
     {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
@@ -46,6 +48,7 @@ class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
     alarmType = widget.collectionName == 'group_normal_alarm' ? 'normal' : 'emergency';
     sound = widget.alarmData['sound'];
     enabled = widget.alarmData['enabled'] ?? true;
+    alarmPackageId = widget.alarmData['alarmId'];
   }
 
   @override
@@ -156,7 +159,8 @@ class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
     if (picked != null) setState(() => selectedTime = picked);
   }
 
-  Future<void> _save() async {
+Future<void> _save() async {
+    // バリデーションチェック
     if (sound == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("アラーム音を選択してください")),
@@ -164,38 +168,92 @@ class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
       return;
     }
 
-    final newTime = "${selectedTime.hour}:${selectedTime.minute}";
-    final newCollection = alarmType == 'normal' ? 'group_normal_alarm' : 'group_emergency_alarm';
+    final newTime = "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}";
+    final newCollection = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
 
-    // 元のアラームを削除
-    await FirebaseFirestore.instance
-        .collection(widget.collectionName)
-        .doc(widget.alarmId)
-        .delete();
+    await Alarm.stop(alarmPackageId);
 
-    // 新しいコレクションに追加
-    await FirebaseFirestore.instance.collection(newCollection).add({
-      'userId': widget.alarmData['userId'],
-      'groupId': widget.groupId,
-      'time': newTime,
-      'days': selectedDays,
-      'enabled': enabled,
-      'sound': sound,
-      'createdAt': Timestamp.now(),
-    });
+    if (widget.collectionName != newCollection) {
+        await FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .doc(widget.alarmId)
+            .delete();
 
+        await FirebaseFirestore.instance.collection(newCollection).add({
+        ...widget.alarmData,
+        'time': newTime,
+        'days': selectedDays,
+        'sound': sound,
+        'enabled': enabled,
+        });
+    } else {
+        await FirebaseFirestore.instance
+            .collection(newCollection)
+            .doc(widget.alarmId)
+            .update({
+        'time': newTime,
+        'days': selectedDays,
+        'sound': sound,
+        'enabled': enabled,
+        });
+    }
+
+  // 🔥 ③ 次回アラーム再登録
+  if (enabled) {
+    await _scheduleNextAlarm(newCollection);
+  }
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("グループアラームが更新されました")),
+      const SnackBar(content: Text("アラームが更新されました")),
     );
 
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const GroupListPage()),
-      (route) => false,
+      (_) => false,
     );
+
+    print('Alarm updated: $newCollection, $newTime, $selectedDays, $enabled, $sound');
   }
+
+      Future<void> _scheduleNextAlarm(String collection) async {
+        final now = DateTime.now();
+
+        DateTime nextDateTime;
+
+        if (selectedDays.isEmpty) {
+            // 単発
+            nextDateTime = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            selectedTime.hour,
+            selectedTime.minute,
+            );
+
+            if (nextDateTime.isBefore(now)) {
+            nextDateTime = nextDateTime.add(const Duration(days: 1));
+            }
+        } else {
+            nextDateTime =
+                calculateNextAlarmDateTime(selectedTime, selectedDays);
+        }
+
+        await Alarm.set(
+            alarmSettings: AlarmSettings(
+            id: alarmPackageId,
+            dateTime: nextDateTime,
+            assetAudioPath: 'assets/sounds/$sound',
+            loopAudio: alarmType == 'emergency',
+            vibrate: true,
+            notificationTitle: 'アラーム',
+            notificationBody: 'アラームの時間です',
+            ),
+        );
+
+        print('編集後アラーム再セット: $nextDateTime');
+        }
 
   Future<void> _delete() async {
     await FirebaseFirestore.instance
@@ -206,13 +264,50 @@ class _EditGroupAlarmPageState extends State<EditGroupAlarmPage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("グループアラームが削除されました")),
+      const SnackBar(content: Text("アラームが削除されました")),
     );
 
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const GroupListPage()),
-      (route) => false,
+      (_) => false,
     );
   }
+}
+
+DateTime calculateNextAlarmDateTime(
+  TimeOfDay time,
+  List<String> days,
+) {
+  final now = DateTime.now();
+
+  final weekdayMap = {
+    '月': DateTime.monday,
+    '火': DateTime.tuesday,
+    '水': DateTime.wednesday,
+    '木': DateTime.thursday,
+    '金': DateTime.friday,
+    '土': DateTime.saturday,
+    '日': DateTime.sunday,
+  };
+
+  final targets =
+      days.map((d) => weekdayMap[d]!).toList()..sort();
+
+  for (int i = 0; i < 7; i++) {
+    final candidate = DateTime(
+      now.year,
+      now.month,
+      now.day + i,
+      time.hour,
+      time.minute,
+    );
+
+    if (targets.contains(candidate.weekday) &&
+        candidate.isAfter(now)) {
+      return candidate;
+    }
+  }
+
+  return now.add(const Duration(days: 1));
 }
