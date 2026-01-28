@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_team_app/alarm/alarm_settings.dart';
+import 'package:alarm/alarm.dart';
 import 'make_alarm.dart';
 import 'alarm_edit.dart';
 import '../fortune_roulet/fortune_roulet.dart';
@@ -209,7 +210,7 @@ class _AlarmListPageState extends State<AlarmListPage>
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return const Center(child: Text("ログインが必要です"));
 
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot> (
       stream: FirebaseFirestore.instance
           .collection(collection)
           .where('userId', isEqualTo: uid)
@@ -226,11 +227,11 @@ class _AlarmListPageState extends State<AlarmListPage>
           final bData = b.data() as Map<String, dynamic>;
           final aTime = aData['time'] ?? '00:00';
           final bTime = bData['time'] ?? '00:00';
-          
+
           // 時刻を分に変換
           int aMinutes = _timeToMinutes(aTime);
           int bMinutes = _timeToMinutes(bTime);
-          
+
           return aMinutes.compareTo(bMinutes);
         });
 
@@ -247,11 +248,33 @@ class _AlarmListPageState extends State<AlarmListPage>
                   : null,
               trailing: Switch(
                 value: data['enabled'] ?? true,
-                onChanged: (v) {
+                onChanged: (v) async {
+                  final alarmId = data['alarmId'];
+                  print("トグルが押された");
+                  if (alarmId == null) return;
                   FirebaseFirestore.instance
                       .collection(collection)
                       .doc(doc.id)
                       .update({'enabled': v});
+                  if (!v) {
+                    await Alarm.stop(alarmId);
+                  } else {
+                    final timeParts = (data['time'] as String).split(':');
+                    final time = TimeOfDay(hour: int.parse(timeParts[0]), minute: int.parse(timeParts[1]));
+                    final List<String> days = List<String>.from(data['days'] ?? []);
+                    final nextDateTime = calculateNextAlarmDateTime(time, days);
+                    await Alarm.set(
+                      alarmSettings: AlarmSettings(
+                        id: alarmId,
+                        dateTime: nextDateTime, 
+                        assetAudioPath: 'assets/sounds/${data['sound']}', 
+                        loopAudio: true,
+                        vibrate: true,
+                        notificationTitle: 'アラーム', 
+                        notificationBody: 'アラームの時間です'
+                      )
+                    );
+                  }
                 },
               ),
               onTap: () {

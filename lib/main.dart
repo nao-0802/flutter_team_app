@@ -1,12 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_team_app/group_alarm/make_group_alarm.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:alarm/alarm.dart';
-
+import 'dart:io';
+import 'dart:async';
 import 'firebase_options.dart';
 import 'login/login.dart';
 import 'alarm/alarm_ring.dart';
@@ -15,7 +18,40 @@ final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+StreamSubscription? _instantAlarmSub;
+
 bool _alarmListenerRegisterd = false;
+
+Future<void> onNotificationTap(NotificationResponse response) async {
+  final payload = response.payload;
+  if (payload == null) return;
+
+  final parts = payload.split('|');
+  final alarmId = parts[0];
+  final groupId = parts[1];
+  final version = int.parse(parts[2]);
+
+  final snap = await FirebaseFirestore.instance
+    .collection('group_normal_alarm')
+    .doc(alarmId)
+    .get();
+
+    if (!snap.exists) return;
+
+    final data = snap.data() as Map<String, dynamic>;
+    final nextTime = calclulateNextAlarmDateTimeFromMap(data);
+    await Alarm.set(
+      alarmSettings: AlarmSettings(
+      id: alarmId.hashCode,
+      dateTime: nextTime,
+      assetAudioPath: 'assets/sounds/${data['sound']}',
+      loopAudio: data['alarmType'] == 'emergency',
+      vibrate: true,
+      notificationTitle: '${data['groupId']}グループアラーム',
+      notificationBody: '時間です',
+      ),
+    );
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +75,8 @@ Future<void> main() async {
         }
     );
   }
+
+  
 
   try {
     await Firebase.initializeApp(
@@ -75,19 +113,9 @@ Future<void> main() async {
 //   );
 
   // 通知チャンネル
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'alarm_channel',
-    'アラーム通知',
-    description: 'アラーム用通知チャンネル',
-    importance: Importance.max,
-    playSound: true,
-  );
+  
 
-  final androidImpl =
-      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-
-  await androidImpl?.createNotificationChannel(channel);
+  await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()!.requestNotificationsPermission();
 
   runApp(const MyApp());
 }
@@ -103,4 +131,57 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
     );
   }
+}
+
+void startInstantAlarmListener(String myUid) {
+  _instantAlarmSub = FirebaseFirestore.instance
+  .collection('instant_alarms')
+  .where('targetUid', isEqualTo: myUid)
+  .snapshots()
+  .listen((snapshot) {
+  for (final doc in snapshot.docs) {
+  _fireInstantAlarm(doc);
+  }
+  });
+}
+
+Future<void> _fireInstantAlarm(
+QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
+final data = doc.data();
+final sound = data['sound'] as String;
+
+
+final alarmId = DateTime.now().millisecondsSinceEpoch;
+
+
+await Alarm.set(
+alarmSettings: AlarmSettings(
+id: alarmId,
+dateTime: DateTime.now().add(const Duration(seconds: 1)),
+assetAudioPath: 'assets/sounds/$sound',
+loopAudio: true,
+vibrate: true,
+notificationTitle: '🚨 イタズラアラーム',
+notificationBody: '起きてください！',
+),
+);
+
+
+// 使い捨てなので削除
+await doc.reference.delete();
+}
+
+DateTime calclulateNextAlarmDateTimeFromMap(
+    Map<String, dynamic> data,
+) {
+  // "9:05" → TimeOfDay(9, 5)
+  final timeParts = (data['time'] as String).split(':');
+  final time = TimeOfDay(
+    hour: int.parse(timeParts[0]),
+    minute: int.parse(timeParts[1]),
+  );
+
+  final days = List<String>.from(data['days'] ?? []);
+
+  return calclulateNextAlarmDateTime(time, days);
 }

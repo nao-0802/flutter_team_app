@@ -371,7 +371,7 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
                           ),
                         ),
                       Text(
-                        '← 左スワイプで詳細',
+                        '← 長押しで詳細',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[400],

@@ -169,7 +169,9 @@ Future<void> _save() async {
     }
 
     final newTime = "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}";
-    final newCollection = alarmType == 'normal' ? 'normal_alarm' : 'emergency_alarm';
+    final newCollection = alarmType == 'normal'
+    ? 'group_normal_alarm'
+    : 'group_emergency_alarm';
 
     await Alarm.stop(alarmPackageId);
 
