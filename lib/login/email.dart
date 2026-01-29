@@ -45,12 +45,14 @@ class _EmailPageState extends State<EmailPage> {
           children: [
             const Text('登録済みのメールアドレスを入力してください'),
             const SizedBox(height: 20),
-            TextField(
+            TextFormField(
               controller: _emailController,
               decoration: const InputDecoration(
                 labelText: 'メールアドレス',
                 border: OutlineInputBorder(),
+                
               ),
+              validator: (v) => v!.isEmpty ? 'メールアドレスを入力してください' : null,
             ),
             const SizedBox(height: 20),
             ElevatedButton(

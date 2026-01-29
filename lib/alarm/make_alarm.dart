@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_team_app/main.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:alarm/alarm.dart';
 import 'alarm_list.dart';
 
@@ -119,19 +121,31 @@ class _MakeAlarmPageState extends State<MakeAlarmPage> {
   Future<void> _testNotification() async {
     print('テスト通知を送信します...');
     final now = DateTime.now();
+    DateTime datetime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute
+    );
 
-    await Alarm.set(
-        alarmSettings: AlarmSettings(
-            id:999,
-            dateTime: now.add(const Duration(seconds: 5)),
-            assetAudioPath: 'assets/sounds/gentle_morning.mp3',
-            loopAudio: true,
-            vibrate: true,
-            volume: 0.5,
-            fadeDuration: 3,
-            notificationTitle: 'テストアラーム',
-            notificationBody: 'テスト'
+    await NotificationService.plugin.zonedSchedule(
+      999,
+      'テストアラーム',
+      datetime.toString(),
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'test_channel', 
+          'test_channelName',
+          importance: Importance.max,
+          priority: Priority.high
         )
+      ),
+      payload: '9999',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
     );
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -261,7 +275,6 @@ DateTime calclulateNextAlarmDateTime(
             time.hour,
             time.minute
         );
-        print("あいうえお");
         return today.isAfter(now)
             ? today
             : today.add(const Duration(days: 1));
@@ -276,8 +289,6 @@ DateTime calclulateNextAlarmDateTime(
         '土': DateTime.saturday,
         '日': DateTime.sunday,
     };
-
-    print("かきくけこ");
 
     final targets = days
         .where((d) => weekdayMap.containsKey(d))

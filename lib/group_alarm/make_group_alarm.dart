@@ -25,6 +25,7 @@
     List<String> selectedDays = [];
     String alarmType = "normal";
     String? sound;
+    final notification = NotificationService.plugin;
 
     final sounds = [
       {'name': 'やさしい朝', 'file': 'gentle_morning.mp3'},
@@ -163,7 +164,7 @@
       final col = alarmType == 'normal' ? 'group_normal_alarm' : 'group_emergency_alarm';
 
       // アラームを保存してIDを取得
-      final docRef = await FirebaseFirestore.instance.collection(col).add(data);
+      await FirebaseFirestore.instance.collection(col).add(data);
 
       // 実際のアラーム時刻に通知を設定
       final now = DateTime.now();
@@ -184,7 +185,7 @@
       
       print('グループアラーム設定: ${tzDateTime.toString()}');
 
-      await flutterLocalNotificationsPlugin.zonedSchedule(
+      await notification.zonedSchedule(
         alarmId.hashCode,
         'グループアラーム（テスト）',
         '新しいグループアラームが作成されました',
@@ -221,7 +222,7 @@
         );
 
       // テスト用: 5秒後にもテスト通知
-      await flutterLocalNotificationsPlugin.zonedSchedule(
+      await notification.zonedSchedule(
         999998,
         "グループアラームテスト",
         "5秒後のテスト通知です",

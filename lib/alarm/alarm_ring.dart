@@ -1,4 +1,3 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:alarm/alarm.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,15 +6,30 @@ import 'package:flutter_team_app/alarm/make_alarm.dart';
 
 class AlarmRingPage extends StatefulWidget {
   final AlarmSettings alarmSettings;
+  final String? sound;
   final String? groupId;
   final String? alarmId;
 
   const AlarmRingPage({
     super.key,
     required this.alarmSettings,
+    this.sound,
     this.groupId,
     this.alarmId,
   });
+
+  static AlarmRingPage fromPayload(String payload) {
+    final dummySettings = AlarmSettings(
+        id: DateTime.now().millisecondsSinceEpoch,
+        dateTime: DateTime.now(),
+        assetAudioPath: 'assets/sounds/wake_up.mp3',
+        loopAudio: true,
+        vibrate: true,
+        notificationTitle: 'テストアラーム',
+        notificationBody: 'テスト通知です',
+    );
+    return AlarmRingPage(sound: payload, alarmSettings: dummySettings,);
+  }
 
   @override
   State<AlarmRingPage> createState() => _AlarmRingPageState();

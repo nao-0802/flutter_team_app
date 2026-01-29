@@ -82,7 +82,7 @@ class _PrankPageState extends State<PrankPage> {
 
     try {
       // 即時アラーム通知を送信
-      await flutterLocalNotificationsPlugin.zonedSchedule(
+      await NotificationService.plugin.zonedSchedule(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
         'イタズラアラーム！',
         '${widget.targetMember['name']}さんへのイタズラアラームです',

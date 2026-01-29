@@ -8,7 +8,6 @@ import 'make_group.dart';
 import '../group_alarm/make_group_alarm.dart';
 import 'group_members.dart';
 import 'edit_group.dart';
-import 'prank_page.dart';
 import '../group_alarm/edit_group_alarm.dart';
 import 'alarm_detail_page.dart';
 
@@ -417,24 +416,24 @@ class _GroupListPageState extends State<GroupListPage> with TickerProviderStateM
 
 
 
-  bool _isAlarmTimePassed(Map<String, dynamic> alarm) {
-    final timeStr = alarm['time'] as String?;
-    if (timeStr == null) return true; // 時刻がない場合はイタズラ可能
+  // bool _isAlarmTimePassed(Map<String, dynamic> alarm) {
+  //   final timeStr = alarm['time'] as String?;
+  //   if (timeStr == null) return true; // 時刻がない場合はイタズラ可能
     
-    final timeParts = timeStr.split(':');
-    if (timeParts.length != 2) return true;
+  //   final timeParts = timeStr.split(':');
+  //   if (timeParts.length != 2) return true;
     
-    final hour = int.tryParse(timeParts[0]);
-    final minute = int.tryParse(timeParts[1]);
-    if (hour == null || minute == null) return true;
+  //   final hour = int.tryParse(timeParts[0]);
+  //   final minute = int.tryParse(timeParts[1]);
+  //   if (hour == null || minute == null) return true;
     
-    final now = DateTime.now();
-    final alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
+  //   final now = DateTime.now();
+  //   final alarmTime = DateTime(now.year, now.month, now.day, hour, minute);
     
-    print('アラーム時刻チェック - 現在: ${now.hour}:${now.minute}, アラーム: $hour:$minute, 経過: ${now.isAfter(alarmTime)}');
+  //   print('アラーム時刻チェック - 現在: ${now.hour}:${now.minute}, アラーム: $hour:$minute, 経過: ${now.isAfter(alarmTime)}');
     
-    return now.isAfter(alarmTime);
-  }
+  //   return now.isAfter(alarmTime);
+  // }
 
   Future<void> _loadGroupAlarms(String groupId) async {
     try {
