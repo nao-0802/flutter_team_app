@@ -18,6 +18,7 @@ class _FortuneRouletPageState extends State<FortuneRouletPage> {
         ),
         body: Center(
             child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                     FilledButton(
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FortunePage())), 

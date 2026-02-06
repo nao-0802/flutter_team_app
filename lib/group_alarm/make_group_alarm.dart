@@ -266,7 +266,6 @@
               time.hour,
               time.minute
           );
-          print("あいうえお");
           return today.isAfter(now)
               ? today
               : today.add(const Duration(days: 1));

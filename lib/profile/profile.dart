@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_team_app/main_scaffold.dart';
 import '../alarm/alarm_list.dart';
 import '../group/group_list.dart';
 import '../task/task_main.dart';
@@ -106,46 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildInfoCard("誕生日", _userData!['birthday'] ?? '未設定'),
                   ],
                 ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AlarmListPage()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const GroupListPage()),
-            );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const TaskMainPage()),
-            );
-          }
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.alarm),
-            label: "アラーム",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: "共有アラーム",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_alt),
-            label: "タスク",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: "プロフィール",
-          ),
-        ],
-      ),
+      bottomNavigationBar: AppBottomNav(currentIndex: _currentIndex),
     );
   }
 

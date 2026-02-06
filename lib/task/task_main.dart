@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_team_app/main_scaffold.dart';
 import 'task_add.dart';
 import 'task_calendar.dart';
 import '../alarm/alarm_list.dart';
@@ -97,46 +98,7 @@ class _TaskMainPageState extends State<TaskMainPage>
         },
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AlarmListPage()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const GroupListPage()),
-            );
-          } else if (index == 3) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfilePage()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.alarm),
-            label: "アラーム",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: "共有アラーム",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_alt),
-            label: "タスク",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: "プロフィール",
-          ),
-        ],
-      ),
+      bottomNavigationBar: AppBottomNav(currentIndex: _currentIndex),
     );
   }
 }
